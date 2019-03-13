@@ -1,0 +1,9 @@
+# standard things
+.ipynb_checkpoints/
+
+# AML Environment Variables
+.env
+
+# models and data
+data/
+model/
