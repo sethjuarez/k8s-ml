@@ -7,6 +7,20 @@ from io import StringIO
 
 from azureml.core.model import Model
 
+def load(path):
+    #new_model = tf.keras.models.load_model(path)
+    new_model = tf.keras.experimental.load_from_saved_model('./model/saved_model.h5')
+    img = "C:\\projects\\k8s-ml\\project\\data\\PetImages\\Dog\\10020.jpg"
+    tensor, label = process_item(img, 0)
+    t = tf.reshape(tensor,[-1, *IMG_SHAPE])
+    print(t.shape)
+    o = new_model.predict(t)
+    print(o)
+    print('Done!')
+
+    # load code.....
+    tf.saved_model.load("/tmp/mobilenet/1/")
+
 def init():
     global model
 
