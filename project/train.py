@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 import os
 import argparse
+import onnxmltools
 import numpy as np
 import tensorflow as tf
 from pathlib import Path
@@ -60,6 +61,8 @@ def run(base_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
     info('Saving Model')
     print('Serializing model to {}'.format(output))
     tf.saved_model.save(model, str(output))
+
+    onnx_model = onnxmltools.convert_keras(model, target_opset=7) 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CNN Training for Image Recognition.')

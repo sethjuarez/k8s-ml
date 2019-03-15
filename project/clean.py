@@ -33,3 +33,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     get_dataset(args.data, args.target, args.img_size)
+
+    # python clean.py -d data/PetImages -t dataset.txt
