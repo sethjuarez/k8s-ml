@@ -2,8 +2,9 @@
 .ipynb_checkpoints/
 __pycache__
 
-# AML Environment Variables
-.env
+# Environment Variables
+*.env
+*.cfg
 
 # models and data
 data/

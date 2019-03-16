@@ -2,24 +2,40 @@ import json
 import time
 import datetime
 import numpy as np
+from helpers import info, process_image
 import tensorflow as tf
 from io import StringIO
 
-from azureml.core.model import Model
+#from azureml.core.model import Model
 
 def load(path):
     #new_model = tf.keras.models.load_model(path)
-    new_model = tf.keras.experimental.load_from_saved_model('./model/saved_model.h5')
+    #new_model = tf.keras.experimental.load_from_saved_model('./model/saved_model.h5')
+
+    model = tf.keras.models.load_model('model/model.h5')
+    model.summary()
     img = "C:\\projects\\k8s-ml\\project\\data\\PetImages\\Dog\\10020.jpg"
-    tensor, label = process_item(img, 0)
-    t = tf.reshape(tensor,[-1, *IMG_SHAPE])
-    print(t.shape)
-    o = new_model.predict(t)
+    print('Predict {}'.format(img))
+    tensor, label = process_image(img, 0, 160)
+    t = tf.reshape(tensor,[-1, 160, 160, 3])
+    o = model.predict(t)
     print(o)
+
+    img = "C:\\projects\\k8s-ml\\project\\data\\PetImages\\Cat\\2.jpg"
+    print('Predict {}'.format(img))
+    tensor, label = process_image(img, 0, 160)
+    t = tf.reshape(tensor,[-1, 160, 160, 3])
+    o = model.predict(t)
+    print(o)
+
     print('Done!')
 
     # load code.....
-    tf.saved_model.load("/tmp/mobilenet/1/")
+    #model = tf.keras.models.load_model('model/model.h5')
+    #model = tf.saved_model.load(path)
+    #print('Done!')
+    #model.summary()
+    return model
 
 def init():
     global model
@@ -72,6 +88,7 @@ def run(raw_data):
     return payload
 
 if __name__ == "__main__":
-    g = load_graph('model.pb')
+    info('Using TensorFlow v.{}'.format(tf.__version__))
+    g = load("./model")
     #init()
     #out = run({x="@"})

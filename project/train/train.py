@@ -1,7 +1,8 @@
 from __future__ import absolute_import, division, print_function
 import os
+import math
 import argparse
-import onnxmltools
+#import onnxmltools
 import numpy as np
 import tensorflow as tf
 from pathlib import Path
@@ -54,15 +55,19 @@ def run(base_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
 
     # training
     info('Training')
-    steps_per_epoch = tf.math.ceil(len(train)/batch_size).numpy()
+    steps_per_epoch = math.ceil(len(train)/batch_size)
     history = model.fit(train_ds, epochs=epochs, steps_per_epoch=steps_per_epoch)
 
     # save model
     info('Saving Model')
     print('Serializing model to {}'.format(output))
-    tf.saved_model.save(model, str(output))
+    #tf.saved_model.save(model, str(output))
 
-    onnx_model = onnxmltools.convert_keras(model, target_opset=7) 
+    model.save(str(output.joinpath('model.h5')))
+
+    #tf.keras.experimental.export_saved_model(model, str(output))
+
+    #onnx_model = onnxmltools.convert_keras(model, target_opset=7) 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CNN Training for Image Recognition.')
@@ -73,6 +78,8 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--outputs', help='output directory', default='model')
     parser.add_argument('-f', '--dataset', help='cleaned data listing')
     args = parser.parse_args()
+
+    info('Using TensorFlow v.{}'.format(tf.__version__))
 
     args.data = check_dir(args.data).resolve()
     args.outputs = check_dir(args.outputs).resolve()
