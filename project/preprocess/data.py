@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     # save file
     print('writing dataset to {}'.format(target_path))
-    with open(target_path, 'w+') as f:
+    with open(str(target_path), 'w+') as f:
         f.write('\n'.join(images))
 
     # python data.py -d data/PetImages -t dataset.txt
