@@ -2,30 +2,93 @@ from __future__ import absolute_import, division, print_function
 import os
 import math
 import argparse
-#import onnxmltools
 import numpy as np
 import tensorflow as tf
 from pathlib import Path
 from random import shuffle
+from subprocess import call
+from datetime import datetime
 from tensorflow.data import Dataset
-from helpers import *
+#from helpers import *
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
+global image_size
+
+def info(msg, char = "#", width = 75):
+    print("")
+    print(char * width)
+    print(char + "   %0*s" % ((-1*width)+5, msg) + char)
+    print(char * width)
+
+def check_dir(path, check=False):
+    if check:
+        assert os.path.exists(path), '{} does not exist!'.format(path)
+    else:
+        if not os.path.exists(path):
+            os.makedirs(path)
+        return Path(path).resolve()
+
+def mount_blob_storage(container, path, temp_path):
+    cmds = ["blobfuse", "{}", "--container-name={}", "--tmp-path={}"]
+    cmds[1] = cmds[1].format(path)
+    cmds[2] = cmds[2].format(container)
+    cmds[3] = cmds[3].format(temp_path)
+    call(cmds)
+    return path
+
+def process_image(path, label):
+    img_raw = tf.io.read_file(path)
+    img_tensor = tf.image.decode_jpeg(img_raw)
+    img_final = tf.image.resize(img_tensor, [image_size, image_size]) / 255
+    return img_final, label
+
+def load_dataset(base_path, dataset, split=[8, 1, 1]):
+    # normalize splits
+    splits = np.array(split) / np.sum(np.array(split))
+
+    # find labels - parent folder names
+    labels = {}
+    for (_, dirs, _) in os.walk(base_path):
+        print('found {}'.format(dirs))
+        labels = { k: v for (v, k) in enumerate(dirs) }
+        print('using {}'.format(labels))
+        break
+        
+    # load all files along with idx label
+    print('loading dataset from {}'.format(dataset))
+    with open(dataset, 'r') as d:
+        data = [(str(Path(f.strip()).absolute()), labels[Path(f.strip()).parent.name]) for f in d.readlines()]
+
+    print('dataset size: {}\nsuffling data...'.format(len(data)))
+    
+    # shuffle data
+    shuffle(data)
+    
+    print('splitting data...')
+    # split data
+    train_idx = int(len(data) * splits[0])
+    eval_idx = int(len(data) * splits[1])
+    
+    return data[:train_idx], \
+            data[train_idx:train_idx + eval_idx], \
+            data[train_idx + eval_idx:], \
+            labels
+
 #@print_info
-def run(base_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.0001, output='model', dataset=None):
+def run(data_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.0001, output='model', dataset=None):
     img_shape = (image_size, image_size, 3)
 
-    info('Creating Data Pipeline')
+    info('Loading Data Set')
     # load dataset
-    train, test, val, labels = load_files(base_path, dataset=dataset)
+    train, test, val, labels = load_dataset(data_path, dataset)
 
     # training data
     train_data, train_labels = zip(*train)
     train_ds = Dataset.zip((Dataset.from_tensor_slices(list(train_data)),
                             Dataset.from_tensor_slices(list(train_labels))))
 
-    train_ds = train_ds.map(map_func=lambda p, l: process_image(p, l, image_size), 
+    train_ds = train_ds.map(map_func=process_image, 
                             num_parallel_calls=AUTOTUNE)
 
     train_ds = train_ds.apply(tf.data.experimental.ignore_errors())
@@ -58,22 +121,29 @@ def run(base_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
     steps_per_epoch = math.ceil(len(train)/batch_size)
     history = model.fit(train_ds, epochs=epochs, steps_per_epoch=steps_per_epoch)
 
+    info('Testing Model')
+    print('TODO!')
+
     # save model
     info('Saving Model')
-    print('Serializing model to {}'.format(output))
-    #tf.saved_model.save(model, str(output))
+    
+    # check existence of base model folder
+    output = check_dir(output)
 
-    model.save(str(output.joinpath('model.h5')))
-
-    #tf.keras.experimental.export_saved_model(model, str(output))
-
-    #onnx_model = onnxmltools.convert_keras(model, target_opset=7) 
+    # add time prefix folder
+    stamp = datetime.now().strftime('%y_%m_%d_%H_%M_model.h5')
+    stamped = str(Path(output).joinpath(stamp))
+    output = str(Path(output).joinpath('latest_model.h5'))
+    print('Serializing model to:\n{}\n{}'.format(stamped, output))
+    model.save(output)
+    model.save(stamped)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CNN Training for Image Recognition.')
     parser.add_argument('-d', '--data', help='directory to training and test data', default='data')
     parser.add_argument('-e', '--epochs', help='number of epochs', default=10, type=int)
     parser.add_argument('-b', '--batch', help='batch size', default=32, type=int)
+    parser.add_argument('-i', '--image_size', help='image size', default=160, type=int)
     parser.add_argument('-l', '--lr', help='learning rate', default=0.0001, type=float)
     parser.add_argument('-o', '--outputs', help='output directory', default='model')
     parser.add_argument('-f', '--dataset', help='cleaned data listing')
@@ -81,9 +151,34 @@ if __name__ == "__main__":
 
     info('Using TensorFlow v.{}'.format(tf.__version__))
 
-    args.data = check_dir(args.data).resolve()
-    args.outputs = check_dir(args.outputs).resolve()
+    # ENV set, we are mounting blob storage
+    if 'BASE_PATH' in os.environ:
+        print('Mounting blob storage')
+        base_path = mount_blob_storage(os.environ['AZURE_STORAGE_CONTAINER'], 
+                                        os.environ['BASE_PATH'], 
+                                        os.environ['TEMP_PATH'])
+    else:
+        base_path = '..'
+        
+    data_path = Path(base_path).joinpath(args.data).resolve()
+    target_path = Path(base_path).resolve().joinpath(args.outputs)
+    dataset = data_path.joinpath(args.dataset)
+    image_size = args.image_size
 
-    run(base_path=args.data, image_size=160, epochs=args.epochs, batch_size=args.batch, learning_rate=args.lr, output=args.outputs, dataset=args.dataset)
+    args = {
+        "data_path": str(data_path), 
+        "image_size": image_size, 
+        "epochs": args.epochs, 
+        "batch_size": args.batch, 
+        "learning_rate": args.lr, 
+        "output": str(target_path), 
+        "dataset": str(dataset)
+    }
+
+    # printing out args for posterity
+    for i in args:
+        print('{} => {}'.format(i, args[i]))
+
+    run(**args)
 
     #python train.py -d data/PetImages -e 1 -b 32 -l 0.0001 -o model -f dataset.txt
