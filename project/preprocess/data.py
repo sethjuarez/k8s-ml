@@ -55,12 +55,13 @@ def walk_images(base_path, image_size=160):
     return images
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='CNN Training for Image Recognition.')
+    parser = argparse.ArgumentParser(description='data cleaning for binary image task')
     parser.add_argument('-d', '--data', help='directory to training and test data', default='data')
     parser.add_argument('-t', '--target', help='target file to hold good data', default='dataset.txt')
     parser.add_argument('-i', '--img_size', help='target image size to verify', default=160, type=int)
     args = parser.parse_args()
 
+    print('Using TensorFlow v.{}'.format(tf.__version__))
     # ENV set, we are mounting blob storage
     if 'BASE_PATH' in os.environ:
         base_path = mount_blob_storage(os.environ['AZURE_STORAGE_CONTAINER'], 
