@@ -28,7 +28,7 @@ RUN chown -R root $TEMP_PATH
 ENV BASE_PATH=${BASE_PATH}
 ENV TEMP_PATH=${TEMP_PATH}
 
-COPY data.py /scripts/data.py
+COPY release.py /scripts/release.py
 
-#ENTRYPOINT [ "bash" ]
-ENTRYPOINT [ "python", "/scripts/data.py", "-d", "data/PetImages", "-t", "dataset.txt" ]
+# #python release.py -d model/latest_model.h5 -n dogsandcats
+ENTRYPOINT [ "python", "/scripts/release.py" ]

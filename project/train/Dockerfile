@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow
+FROM tensorflow/tensorflow:latest-py3
 
 # wget
 RUN apt-get update \

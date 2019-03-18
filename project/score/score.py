@@ -4,8 +4,9 @@ import datetime
 import requests
 import numpy as np
 from PIL import Image
-import tensorflow as tf
 from io import BytesIO
+import tensorflow as tf
+from subprocess import call
 
 #from azureml.core.model import Model
 
