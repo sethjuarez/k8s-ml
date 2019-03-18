@@ -30,7 +30,12 @@ RUN chown -R root $TEMP_PATH
 ENV BASE_PATH=${BASE_PATH}
 ENV TEMP_PATH=${TEMP_PATH}
 
-COPY release.py /scripts/release.py
+COPY convert.py /scripts/convert.py
 
-# #python release.py -d model/latest_model.h5 -n dogsandcats
-ENTRYPOINT [ "python", "/scripts/release.py" ]
+# python convert.py -m model/latest.h5 -t model/latest.onnx
+#ENTRYPOINT [ "python", \
+#            "/scripts/convert.py", \
+#            "-m", "model/latest.h5", \
+#            "-t", "model/latest.onnx" ]
+
+ENTRYPOINT [ "bash" ]

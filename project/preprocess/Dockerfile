@@ -14,7 +14,9 @@ RUN wget https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-p
 RUN apt-get install -y blobfuse fuse
 
 # Clean up APT when done.
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && rm /packages-microsoft-prod.deb
 
 # pip install
 COPY requirements.txt /scripts/requirements.txt

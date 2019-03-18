@@ -129,7 +129,7 @@ if __name__ == "__main__":
     dog = 'https://images.pexels.com/photos/356378/pexels-photo-356378.jpeg'
 
     x = process_image(cat, 160)
-    model = load('../model/latest_model.h5')
+    model = load('../model/latest.h5')
     print('Cat:')
     run(json.dumps({ 'image': cat }))
     print('Dog:')

@@ -131,9 +131,9 @@ def run(data_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
     output = check_dir(output)
 
     # add time prefix folder
-    stamp = datetime.now().strftime('%y_%m_%d_%H_%M_model.h5')
+    stamp = datetime.now().strftime('%y_%m_%d_%H_%M.h5')
     stamped = str(Path(output).joinpath(stamp))
-    output = str(Path(output).joinpath('latest_model.h5'))
+    output = str(Path(output).joinpath('latest.h5'))
     print('Serializing model to:\n{}\n{}'.format(stamped, output))
     model.save(output)
     model.save(stamped)
