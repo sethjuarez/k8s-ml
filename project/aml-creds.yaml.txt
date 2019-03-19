@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aml-service-creds
+type: Opaque
+data:
+  # aml auth using RBAC service principal
+  TENANT_ID: <TENANT_ID>
+  SERVICE_PRINCIPAL_ID: <SERVICE_PRINCIPAL_ID>
+  SERVICE_PRINCIPAL_PASSWORD: <SERVICE_PRINCIPAL_PASSWORD>
+
+  # aml environment variables
+  WORKSPACE_NAME: <WORKSPACE_NAME>
+  SUBSCRIPTION_ID: <SUBSCRIPTION_ID>
+  RESOURCE_GROUP: <RESOURCE_GROUP>

@@ -1,0 +1,215 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: dogsvcats-
+spec:
+  arguments:
+    parameters:
+    - name: base-path
+      value: /mnt/azure
+    - name: epochs
+      value: '5'
+    - name: batch
+      value: '32'
+    - name: learning-rate
+      value: '0.0001'
+  entrypoint: dogsvcats
+  serviceAccountName: pipeline-runner
+  templates:
+  - dag:
+      tasks:
+      - arguments:
+          parameters:
+          - name: base-path
+            value: '{{inputs.parameters.base-path}}'
+        name: preprocess
+        template: preprocess
+      - arguments:
+          parameters:
+          - name: base-path
+            value: '{{inputs.parameters.base-path}}'
+        dependencies:
+        - train
+        name: score
+        template: score
+      - arguments:
+          parameters:
+          - name: base-path
+            value: '{{inputs.parameters.base-path}}'
+          - name: batch
+            value: '{{inputs.parameters.batch}}'
+          - name: epochs
+            value: '{{inputs.parameters.epochs}}'
+          - name: learning-rate
+            value: '{{inputs.parameters.learning-rate}}'
+        dependencies:
+        - preprocess
+        name: train
+        template: train
+    inputs:
+      parameters:
+      - name: base-path
+      - name: batch
+      - name: epochs
+      - name: learning-rate
+    name: dogsvcats
+  - container:
+      args:
+      - /scripts/data.py
+      - --base_path
+      - '{{inputs.parameters.base-path}}'
+      - --data
+      - data/PetImages
+      - --target
+      - dataset.txt
+      - --img_size
+      - '160'
+      command:
+      - python
+      image: tlaloc.azurecr.io/kubeflow/preprocess
+      volumeMounts:
+      - mountPath: /mnt/azure/
+        name: azure
+    inputs:
+      parameters:
+      - name: base-path
+    name: preprocess
+    outputs:
+      artifacts:
+      - name: mlpipeline-ui-metadata
+        path: /mlpipeline-ui-metadata.json
+        s3:
+          accessKeySecret:
+            key: accesskey
+            name: mlpipeline-minio-artifact
+          bucket: mlpipeline
+          endpoint: minio-service.kubeflow:9000
+          insecure: true
+          key: runs/{{workflow.uid}}/{{pod.name}}/mlpipeline-ui-metadata.tgz
+          secretKeySecret:
+            key: secretkey
+            name: mlpipeline-minio-artifact
+      - name: mlpipeline-metrics
+        path: /mlpipeline-metrics.json
+        s3:
+          accessKeySecret:
+            key: accesskey
+            name: mlpipeline-minio-artifact
+          bucket: mlpipeline
+          endpoint: minio-service.kubeflow:9000
+          insecure: true
+          key: runs/{{workflow.uid}}/{{pod.name}}/mlpipeline-metrics.tgz
+          secretKeySecret:
+            key: secretkey
+            name: mlpipeline-minio-artifact
+  - container:
+      args:
+      - /scripts/score.py
+      - --base_path
+      - '{{inputs.parameters.base-path}}'
+      - --model
+      - model/latest.h5
+      command:
+      - python
+      image: tlaloc.azurecr.io/kubeflow/score
+      volumeMounts:
+      - mountPath: /mnt/azure/
+        name: azure
+    inputs:
+      parameters:
+      - name: base-path
+    name: score
+    outputs:
+      artifacts:
+      - name: mlpipeline-ui-metadata
+        path: /mlpipeline-ui-metadata.json
+        s3:
+          accessKeySecret:
+            key: accesskey
+            name: mlpipeline-minio-artifact
+          bucket: mlpipeline
+          endpoint: minio-service.kubeflow:9000
+          insecure: true
+          key: runs/{{workflow.uid}}/{{pod.name}}/mlpipeline-ui-metadata.tgz
+          secretKeySecret:
+            key: secretkey
+            name: mlpipeline-minio-artifact
+      - name: mlpipeline-metrics
+        path: /mlpipeline-metrics.json
+        s3:
+          accessKeySecret:
+            key: accesskey
+            name: mlpipeline-minio-artifact
+          bucket: mlpipeline
+          endpoint: minio-service.kubeflow:9000
+          insecure: true
+          key: runs/{{workflow.uid}}/{{pod.name}}/mlpipeline-metrics.tgz
+          secretKeySecret:
+            key: secretkey
+            name: mlpipeline-minio-artifact
+  - container:
+      args:
+      - /scripts/train.py
+      - --base_path
+      - '{{inputs.parameters.base-path}}'
+      - --data
+      - data
+      - --epochs
+      - '{{inputs.parameters.epochs}}'
+      - --batch
+      - '{{inputs.parameters.batch}}'
+      - --image_size
+      - '160'
+      - --lr
+      - '{{inputs.parameters.learning-rate}}'
+      - --outputs
+      - model
+      - --dataset
+      - dataset.txt
+      command:
+      - python
+      image: tlaloc.azurecr.io/kubeflow/train
+      volumeMounts:
+      - mountPath: /mnt/azure/
+        name: azure
+    inputs:
+      parameters:
+      - name: base-path
+      - name: batch
+      - name: epochs
+      - name: learning-rate
+    name: train
+    outputs:
+      artifacts:
+      - name: mlpipeline-ui-metadata
+        path: /mlpipeline-ui-metadata.json
+        s3:
+          accessKeySecret:
+            key: accesskey
+            name: mlpipeline-minio-artifact
+          bucket: mlpipeline
+          endpoint: minio-service.kubeflow:9000
+          insecure: true
+          key: runs/{{workflow.uid}}/{{pod.name}}/mlpipeline-ui-metadata.tgz
+          secretKeySecret:
+            key: secretkey
+            name: mlpipeline-minio-artifact
+      - name: mlpipeline-metrics
+        path: /mlpipeline-metrics.json
+        s3:
+          accessKeySecret:
+            key: accesskey
+            name: mlpipeline-minio-artifact
+          bucket: mlpipeline
+          endpoint: minio-service.kubeflow:9000
+          insecure: true
+          key: runs/{{workflow.uid}}/{{pod.name}}/mlpipeline-metrics.tgz
+          secretKeySecret:
+            key: secretkey
+            name: mlpipeline-minio-artifact
+  volumes:
+  - name: azure
+    azureFile:
+      secretName: azure-secret
+      shareName: dogsandcats
+      readOnly: false

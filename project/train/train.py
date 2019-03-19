@@ -6,12 +6,8 @@ import numpy as np
 import tensorflow as tf
 from pathlib import Path
 from random import shuffle
-from subprocess import call
 from datetime import datetime
 from tensorflow.data import Dataset
-#from helpers import *
-
-AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 global image_size
 
@@ -29,18 +25,10 @@ def check_dir(path, check=False):
             os.makedirs(path)
         return Path(path).resolve()
 
-def mount_blob_storage(container, path, temp_path):
-    cmds = ["blobfuse", "{}", "--container-name={}", "--tmp-path={}"]
-    cmds[1] = cmds[1].format(path)
-    cmds[2] = cmds[2].format(container)
-    cmds[3] = cmds[3].format(temp_path)
-    call(cmds)
-    return path
-
 def process_image(path, label):
     img_raw = tf.io.read_file(path)
-    img_tensor = tf.image.decode_jpeg(img_raw)
-    img_final = tf.image.resize(img_tensor, [image_size, image_size]) / 255
+    img_tensor = tf.image.decode_jpeg(img_raw, channels=3)
+    img_final = tf.image.resize_image_with_pad(img_tensor, image_size, image_size) / 255
     return img_final, label
 
 def load_dataset(base_path, dataset, split=[8, 1, 1]):
@@ -89,12 +77,12 @@ def run(data_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
                             Dataset.from_tensor_slices(list(train_labels))))
 
     train_ds = train_ds.map(map_func=process_image, 
-                            num_parallel_calls=AUTOTUNE)
+                            num_parallel_calls=5)
 
     train_ds = train_ds.apply(tf.data.experimental.ignore_errors())
 
     train_ds = train_ds.batch(batch_size)
-    train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
+    train_ds = train_ds.prefetch(buffer_size=5)
     train_ds = train_ds.repeat()
 
     # model
@@ -140,6 +128,7 @@ def run(data_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='transfer learning for binary image task')
+    parser.add_argument('-s', '--base_path', help='directory to base data', default='..')
     parser.add_argument('-d', '--data', help='directory to training and test data', default='data')
     parser.add_argument('-e', '--epochs', help='number of epochs', default=10, type=int)
     parser.add_argument('-b', '--batch', help='batch size', default=32, type=int)
@@ -150,18 +139,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     info('Using TensorFlow v.{}'.format(tf.__version__))
-
-    # ENV set, we are mounting blob storage
-    if 'BASE_PATH' in os.environ:
-        print('Mounting blob storage')
-        base_path = mount_blob_storage(os.environ['AZURE_STORAGE_CONTAINER'], 
-                                        os.environ['BASE_PATH'], 
-                                        os.environ['TEMP_PATH'])
-    else:
-        base_path = '..'
         
-    data_path = Path(base_path).joinpath(args.data).resolve()
-    target_path = Path(base_path).resolve().joinpath(args.outputs)
+    data_path = Path(args.base_path).joinpath(args.data).resolve()
+    target_path = Path(args.base_path).resolve().joinpath(args.outputs)
     dataset = data_path.joinpath(args.dataset)
     image_size = args.image_size
 

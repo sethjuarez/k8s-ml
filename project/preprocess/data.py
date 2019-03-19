@@ -1,26 +1,15 @@
 import os
 import time
-import warnings
 import argparse
 import numpy as np
 import tensorflow as tf
 from pathlib import Path
-from subprocess import call
-warnings.filterwarnings("error")
 
-def mount_blob_storage(container, path, temp_path):
-    cmds = ["blobfuse", "{}", "--container-name={}", "--tmp-path={}"]
-    cmds[1] = cmds[1].format(path)
-    cmds[2] = cmds[2].format(container)
-    cmds[3] = cmds[3].format(temp_path)
-    call(cmds)
-    return path
-
-def process_image(path, label, image_size):
+def process_image(path, image_size):
     img_raw = tf.io.read_file(path)
-    img_tensor = tf.image.decode_jpeg(img_raw)
-    img_final = tf.image.resize(img_tensor, [image_size, image_size]) / 255
-    return img_final, label
+    img_tensor = tf.image.decode_jpeg(img_raw, channels=3)
+    img_final = tf.image.resize_image_with_pad(img_tensor, image_size, image_size) / 255
+    return img_final
 
 def walk_images(base_path, image_size=160):
     images = []
@@ -43,34 +32,26 @@ def walk_images(base_path, image_size=160):
 
             image = os.path.join(path, item)
             try:
-                img, _ = process_image(image, 0, image_size)
+                img = process_image(image, image_size)
                 assert img.shape[2] == 3, "Invalid channel count"
                 # write out good images
                 images.append(image)
             except Exception as e:
                 print('{}\n{}\n'.format(e, image))
-            except RuntimeWarning as w:
-                print('--------------------------{}\n{}\n'.format(w, image))
 
     return images
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='data cleaning for binary image task')
+    parser.add_argument('-b', '--base_path', help='directory to base data', default='..')
     parser.add_argument('-d', '--data', help='directory to training and test data', default='data')
     parser.add_argument('-t', '--target', help='target file to hold good data', default='dataset.txt')
     parser.add_argument('-i', '--img_size', help='target image size to verify', default=160, type=int)
     args = parser.parse_args()
 
     print('Using TensorFlow v.{}'.format(tf.__version__))
-    # ENV set, we are mounting blob storage
-    if 'BASE_PATH' in os.environ:
-        base_path = mount_blob_storage(os.environ['AZURE_STORAGE_CONTAINER'], 
-                                        os.environ['BASE_PATH'], 
-                                        os.environ['TEMP_PATH'])
-    else:
-        base_path = '..'
-        
-    base_path = Path(base_path).joinpath(args.data).resolve()
+    
+    base_path = Path(args.base_path).joinpath(args.data).resolve()
     target_path = Path(base_path).resolve().joinpath(args.target)
 
     images = walk_images(str(base_path), args.img_size)
