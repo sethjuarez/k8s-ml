@@ -3,7 +3,6 @@ import argparse
 import onnxmltools
 import tensorflow as tf
 from pathlib import Path
-from subprocess import call
 
 def info(msg, char = "#", width = 75):
     print("")
@@ -11,13 +10,6 @@ def info(msg, char = "#", width = 75):
     print(char + "   %0*s" % ((-1*width)+5, msg) + char)
     print(char * width)
 
-def mount_blob_storage(container, path, temp_path):
-    cmds = ["blobfuse", "{}", "--container-name={}", "--tmp-path={}"]
-    cmds[1] = cmds[1].format(path)
-    cmds[2] = cmds[2].format(container)
-    cmds[3] = cmds[3].format(temp_path)
-    call(cmds)
-    return path
 
 def run(model_file, target_file):
     info('Attempting conversion')
@@ -48,18 +40,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print('Using TensorFlow v.{}'.format(tf.__version__))
-    # ENV set, we are mounting blob storage
-    if 'BASE_PATH' in os.environ:
-        base_path = mount_blob_storage(os.environ['AZURE_STORAGE_CONTAINER'], 
-                                        os.environ['BASE_PATH'], 
-                                        os.environ['TEMP_PATH'])
-    else:
-        base_path = '..'
+    base_path = '.'
         
     source_path = Path(base_path).joinpath(args.model).resolve()
     target_path = Path(base_path).resolve().joinpath(args.target)
 
     run(str(source_path), str(target_path))
 
-    # python convert.py -m model/latest_model.h5 -t model/latest.onnx
-    # blobfuse $BASE_PATH --container-name=$AZURE_STORAGE_CONTAINER --tmp-path=$TEMP_PATH
+    # python convert.py -m model/latest.h5 -t model/latest.onnx
+ 

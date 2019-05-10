@@ -39,7 +39,7 @@ def dogsandcats_train(
         arguments=[
             '/scripts/train.py',
             '--base_path', base_path,
-            '--data', 'data', 
+            '--data', 'data/PetImages', 
             '--epochs', epochs, 
             '--batch', batch, 
             '--image_size', '160', 
@@ -63,12 +63,41 @@ def dogsandcats_train(
     )
     operations['score'].after(operations['train'])
 
-    # #release
-    # operations['release'] = dsl.ContainerOp(
-    #     name='release',
-    #     image='tlaloc.azurecr.io/kubeflow/release'
-    # )
-    # operations['release'].after(operations['score'])
+    #release
+    operations['release'] = dsl.ContainerOp(
+        name='release',
+        image='tlaloc.azurecr.io/kubeflow/release',
+        command=['python'],
+        arguments=[
+            '/scripts/release.py',
+            '--base_path', base_path,
+            '--model', 'model/latest.h5',
+            '--model_name', 'model/latest.h5'
+        ]
+    )
+    operations['release'].after(operations['score'])
+
+
+    #onnx
+    input_model = '/mnt/azure/model/latest.h5'
+    output_model = '/mnt/azure/model/latest.onnx'
+
+    operations['onnx'] = dsl.ContainerOp(
+        name='onnx',
+        image='onnx/onnx-ecosystem',
+        command=['python'],
+        arguments=[
+            '-c',
+            'import onnxmltools;' + \
+            'from keras.models import load_model;' + \
+            'model = load_model("{}");'.format(input_model) + \
+            'onnx_model = onnxmltools.convert_keras(model);' +
+            'onnxmltools.utils.save_model(onnx_model, "{}")'.format(output_model)
+        ],
+    )
+    operations['onnx'].after(operations['score'])
+                                                                                                                                                
+
 
     for _, op in operations.items():
         op.add_volume(

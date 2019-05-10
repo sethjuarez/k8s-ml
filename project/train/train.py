@@ -28,7 +28,7 @@ def check_dir(path, check=False):
 def process_image(path, label):
     img_raw = tf.io.read_file(path)
     img_tensor = tf.image.decode_jpeg(img_raw, channels=3)
-    img_final = tf.image.resize_image_with_pad(img_tensor, image_size, image_size) / 255
+    img_final = tf.image.resize(img_tensor, [image_size, image_size]) / 255
     return img_final, label
 
 def load_dataset(base_path, dataset, split=[8, 1, 1]):
@@ -95,7 +95,7 @@ def run(data_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
     model = tf.keras.Sequential([
         base_model,
         tf.keras.layers.GlobalAveragePooling2D(),
-        tf.keras.layers.Dense(1)
+        tf.keras.layers.Dense(1, activation='sigmoid')
     ])
 
     model.compile(optimizer=tf.keras.optimizers.RMSprop(lr=learning_rate), 
@@ -118,13 +118,17 @@ def run(data_path, image_size=160, epochs=10, batch_size=32, learning_rate=0.000
     # check existence of base model folder
     output = check_dir(output)
 
+    print('Serializing into saved_model format')
+    tf.saved_model.save(model, str(output))
+
     # add time prefix folder
-    stamp = datetime.now().strftime('%y_%m_%d_%H_%M.h5')
-    stamped = str(Path(output).joinpath(stamp))
-    output = str(Path(output).joinpath('latest.h5'))
-    print('Serializing model to:\n{}\n{}'.format(stamped, output))
-    model.save(output)
-    model.save(stamped)
+    #stamp = datetime.now().strftime('%y_%m_%d_%H_%M.h5')
+    #stamped = str(Path(output).joinpath(stamp))
+    file_output = str(Path(output).joinpath('latest.h5'))
+    #print('Serializing model to:\n{}\n{}'.format(stamped, output))
+    model.save(file_output)
+    #model.save(stamped)
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='transfer learning for binary image task')

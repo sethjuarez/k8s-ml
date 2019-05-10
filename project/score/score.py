@@ -52,7 +52,7 @@ def run(raw_data):
 
     tensor = process_image(img_path, 160)
     t = tf.reshape(tensor, [-1, 160, 160, 3])
-    o = model.predict(t)[0][0]
+    o = model.predict(t, steps=1)[0][0]
     inference_time = datetime.timedelta(seconds=current_time - prev_time)
 
     payload = {

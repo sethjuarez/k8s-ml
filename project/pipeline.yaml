@@ -153,7 +153,7 @@ spec:
       - --base_path
       - '{{inputs.parameters.base-path}}'
       - --data
-      - data
+      - data/PetImages
       - --epochs
       - '{{inputs.parameters.epochs}}'
       - --batch
